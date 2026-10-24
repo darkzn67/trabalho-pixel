@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel</title>
+<style>
+  :root {
+    --bg: #f3f1ee;
+    --ink: #1b1b1f;
+    --line: #1b1b1f;
+    --btn: #1b1b1f;
+    --btn-ink: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1b22;
+      --ink: #f1eee8;
+      --line: #f1eee8;
+      --btn: #f1eee8;
+      --btn-ink: #1c1b22;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 100vh;
+    padding: 20px 12px 28px;
+    gap: 20px;
+  }
+  h1 { margin: 0; font-size: 1.6rem; letter-spacing: .02em; }
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    width: min(92vw, 420px);
+    border: 2px solid var(--line);
+  }
+  .cor {
+    aspect-ratio: 1;
+    border: 0;
+    border-radius: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+  }
+  .cor:active { opacity: .6; }
+  .cor:focus-visible { outline: 3px solid #4FB3E8; outline-offset: -3px; }
+  .grade {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    width: min(92vw, 420px);
+    aspect-ratio: 1;
+    border: 2px solid var(--line);
+    touch-action: none;
+  }
+  .px {
+    border: 1px solid #fff;
+    cursor: crosshair;
+  }
+  .acoes { display: flex; gap: 16px; }
+  .acoes button {
+    background: var(--btn);
+    color: var(--btn-ink);
+    border: 0;
+    padding: 12px 22px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .acoes button:focus-visible { outline: 3px solid #4FB3E8; outline-offset: 2px; }
+  #msg { min-height: 1.2em; margin: 0; font-size: .9rem; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>Pixel</h1>
+  <div class="palette" id="paleta" role="radiogroup" aria-label="Paleta de cores"></div>
+  <div class="grade" id="grade" aria-label="Grade 8 por 8"></div>
+  <div>
+    <div class="acoes">
+      <button id="limpar">Limpar</button>
+      <button id="compartilhar">Compartilhar</button>
+    </div>
+    <p id="msg" role="status"></p>
+  </div>
+
+<script>
+  const cores = [
+    "#FFFFFF", "#FFE135", "#FF8C00", "#E32636", "#FF69B4", "#8A2BE2",
+    "#1F3FBF", "#4FB3E8", "#1E8B3A", "#7FD13B", "#8B4513", "#000000"
+  ];
+  const N = 8;
+  let corAtual = "#000000";
+  let pixels = Array(N * N).fill("#000000");
+  let pintando = false;
+
+  const paleta = document.getElementById("paleta");
+  const grade = document.getElementById("grade");
+  const msg = document.getElementById("msg");
+
+  function desenharPaleta() {
+    paleta.innerHTML = "";
+    cores.forEach((cor) => {
+      const b = document.createElement("button");
+      b.className = "cor";
+      b.style.background = cor;
+      b.style.color = cor === "#000000" ? "#fff" : "#000";
+      b.textContent = cor === corAtual ? "X" : "";
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", cor === corAtual);
+      b.setAttribute("aria-label", "Cor " + cor);
+      b.onclick = () => { corAtual = cor; desenharPaleta(); };
+      paleta.appendChild(b);
+    });
+  }
+
+  function desenharGrade() {
+    grade.innerHTML = "";
+    pixels.forEach((p, i) => {
+      const d = document.createElement("div");
+      d.className = "px";
+      d.style.background = p;
+      d.dataset.i = i;
+      grade.appendChild(d);
+    });
+  }
+
+  function pintar(i) {
+    if (pixels[i] === corAtual) return;
+    pixels[i] = corAtual;
+    grade.children[i].style.background = corAtual;
+  }
+
+  function pixelDoEvento(e) {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    return el && el.classList.contains("px") ? Number(el.dataset.i) : null;
+  }
+
+  grade.addEventListener("pointerdown", (e) => {
+    pintando = true;
+    const i = pixelDoEvento(e);
+    if (i !== null) pintar(i);
+  });
+  grade.addEventListener("pointermove", (e) => {
+    if (!pintando) return;
+    const i = pixelDoEvento(e);
+    if (i !== null) pintar(i);
+  });
+  window.addEventListener("pointerup", () => { pintando = false; });
+
+  document.getElementById("limpar").onclick = () => {
+    pixels = Array(N * N).fill("#000000");
+    desenharGrade();
+    msg.textContent = "";
+  };
+
+  function gerarPNG() {
+    const tam = 64; // pixels por quadrado
+    const c = document.createElement("canvas");
+    c.width = c.height = N * tam;
+    const ctx = c.getContext("2d");
+    pixels.forEach((cor, i) => {
+      const x = (i % N) * tam, y = Math.floor(i / N) * tam;
+      ctx.fillStyle = cor;
+      ctx.fillRect(x, y, tam, tam);
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, tam - 2, tam - 2);
+    });
+    return new Promise((ok) => c.toBlob(ok, "image/png"));
+  }
+
+  document.getElementById("compartilhar").onclick = async () => {
+    try {
+      const blob = await gerarPNG();
+      const arquivo = new File([blob], "desenho-pixel.png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: "Meu desenho" });
+        msg.textContent = "";
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "desenho-pixel.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        msg.textContent = "Compartilhamento indisponível aqui. A imagem foi baixada.";
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      msg.textContent = "Não foi possível compartilhar o desenho.";
+    }
+  };
+
+  desenharPaleta();
+  desenharGrade();
+</script>
+</body>
+</html>
